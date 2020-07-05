@@ -13,10 +13,7 @@
 # Import Dependencies:
 import json
 import pandas as pd
-import numpy as np 
-import time
-from sqlalchemy import create_engine
-from config import db_password 
+import numpy as np
 
 # Function:
 
@@ -116,6 +113,119 @@ def extract_transform_load(wiki_file, kaggle_file, ratings_file):
     ##### Changes to be made: budget --> numeric; box office --> numeric; release date --> datetime; run time --> numeric
 
     import re 
+
+    #### Box Office -- change to numeric: 
+    ##### Assumption 6.1: There are two main forms of numeric formats for box office and budget values
+
+    box_office = wiki_movies_df['Box office'].dropna() 
+
+    lambda x: type(x) != str
+
+    box_office[box_office.map(lambda x: type(x) != str)]
+
+    box_office = box_office.apply(lambda x: ' '.join(x) if type(x) == list else x)
+
+    form_one = r'\$\s*\d+\.?\d*\s*[mb]illi?on'
+    form_two = r'\$\s*\d{1,3}(?:[,\.]\d{3})+(?!\s[mb]illion)
+
+    ##### Parse box office values
+    def parse_dollars(s):
+        # if s is not a string, return NaN
+        if type(s) != str:
+            return np.nan
+
+        # if input is of the form $###.# million
+        if re.match(r'\$\s*\d+\.?\d*\s*milli?on', s, flags=re.IGNORECASE):
+
+            # remove dollar sign and " million"
+            s = re.sub('\$|\s|[a-zA-Z]','', s)
+
+            # convert to float and multiply by a million
+            value = float(s) * 10**6
+
+            return value
+
+        # if input is of the form $###.# billion
+        elif re.match(r'\$\s*\d+\.?\d*\s*billi?on', s, flags=re.IGNORECASE):
+
+            # remove dollar sign and " billion"
+            s = re.sub('\$|\s|[a-zA-Z]','', s)
+
+            # convert to float and multiply by a billion
+            value = float(s) * 10**9
+
+            return value
+
+        # if input is of the form $###,###,###
+        elif re.match(r'\$\s*\d{1,3}(?:[,\.]\d{3})+(?!\s[mb]illion)', s, flags=re.IGNORECASE):
+
+            # remove dollar sign and commas
+            s = re.sub('\$|,','', s)
+
+            # convert to float
+            value = float(s)
+            return value
+
+        # otherwise, return NaN
+        else:
+            return np.nan
+
+    wiki_movies_df['box_office'] = box_office.str.extract(f'({form_one}|{form_two})', flags=re.IGNORECASE)[0].apply(parse_dollars)
+
+    wiki_movies_df.drop('Box office', axis=1, inplace=True)    
+
+    
+    #### Budget -- change to numeric: 
+    budget = wiki_movies_df['Budget'].dropna()
+    
+    budget = budget.map(lambda x: ' '.join(x) if type(x) == list else x)
+
+    budget = budget.str.replace(r'\$.*[-—–](?![a-z])', '$', regex=True)
+
+    budget = budget.str.replace(r'\[\d+\]\s*', '')
+
+    ##### Parse budget values:
+    wiki_movies_df['budget'] = budget.str.extract(f'({form_one}|{form_two})', flags=re.IGNORECASE)[0].apply(parse_dollars)
+
+    wiki_movies_df.drop('Budget', axis=1, inplace=True)
+
+
+    #### Release Date -- change to datetime:
+    release_date = wiki_movies_df['Release date'].dropna().apply(lambda x: ' '.join(x) if type(x) == list else x)
+
+    ##### Assumption 6.2: There are 4 main forms of dates. 
+        # Full month name, one- to two-digit day, four-digit year (i.e., January 1, 2000)
+        # Four-digit year, two-digit month, two-digit day, with any separator (i.e., 2000-01-01)
+        # Full month name, four-digit year (i.e., January 2000)
+        # Four-digit year
+
+    date_form_one = r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s[123]\d,\s\d{4}'
+    date_form_two = r'\d{4}.[01]\d.[123]\d'
+    date_form_three = r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s\d{4}'
+    date_form_four = r'\d{4}'
+
+    wiki_movies_df['release_date'] = pd.to_datetime(release_date.str.extract(f'({date_form_one}|{date_form_two}|{date_form_three}|{date_form_four})')[0], infer_datetime_format=True)
+
+    #### Running Time -- change to numeric:
+    running_time = wiki_movies_df['Running time'].dropna().apply(lambda x: ' '.join(x) if type(x) == list else x)
+
+    running_time_extract = running_time.str.extract(r'(\d+)\s*ho?u?r?s?\s*(\d*)|(\d+)\s*m')
+
+    ##### Convert lists to strings -- fill empty cells with 0
+    running_time_extract = running_time_extract.apply(lambda col: pd.to_numeric(col, errors='coerce')).fillna(0)
+
+    wiki_movies_df['running_time'] = running_time_extract.apply(lambda row: row[0]*60 + row[1] if row[2] == 0 else row[2], axis=1)
+
+    wiki_movies_df.drop('Running time', axis=1, inplace=True)
+
+    ### Marks the end of cleaning up the Wikipedia data!
+
+
+    ### Transform Kaggle Data:
+    
+
+    
+
 
     ## STEP 3: LOAD
 
