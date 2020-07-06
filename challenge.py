@@ -32,6 +32,8 @@ def extract_transform_load(wiki_file, kaggle_file, ratings_file):
     
     ratings = pd.read_csv(f'{ratings_file}')
     
+    ## This ends the EXTRACT section!
+
   
     ## STEP 2: TRANSFORM
 
@@ -126,7 +128,7 @@ def extract_transform_load(wiki_file, kaggle_file, ratings_file):
     box_office = box_office.apply(lambda x: ' '.join(x) if type(x) == list else x)
 
     form_one = r'\$\s*\d+\.?\d*\s*[mb]illi?on'
-    form_two = r'\$\s*\d{1,3}(?:[,\.]\d{3})+(?!\s[mb]illion)
+    form_two = r'\$\s*\d{1,3}(?:[,\.]\d{3})+(?!\s[mb]illion)'
 
     ##### Parse box office values
     def parse_dollars(s):
@@ -221,10 +223,91 @@ def extract_transform_load(wiki_file, kaggle_file, ratings_file):
     ### Marks the end of cleaning up the Wikipedia data!
 
 
-    ### Transform Kaggle Data:
+    ### Transform Kaggle Metadata:
     
+    #### Clean up Adult column:
+    kaggle_metadata = kaggle_metadata[kaggle_metadata['adult'] == 'False'].drop('adult',axis='columns')
 
-    
+    #### Clean up Video column:
+    kaggle_metadata['video'] = kaggle_metadata['video'] == 'True'
+
+    #### Convert numeric columns:
+    kaggle_metadata['budget'] = kaggle_metadata['budget'].astype(int)
+    kaggle_metadata['id'] = pd.to_numeric(kaggle_metadata['id'], errors='raise')
+    kaggle_metadata['popularity'] = pd.to_numeric(kaggle_metadata['popularity'], errors='raise')
+
+    #### Convert Release Date to datetime:
+    kaggle_metadata['release_date'] = pd.to_datetime(kaggle_metadata['release_date'])
+
+    ### Transform the Kaggle Ratings Data:
+
+    #### Convert Timestamp to datetime:
+    ratings['timestamp'] = pd.to_datetime(ratings['timestamp'], unit='s')
+
+
+    ### Merge Wikipedia and Kaggle Metadata into movies_df:
+
+    #### Inner join metadata and wikipedia after cleaning:
+    movies_df = pd.merge(wiki_movies_df, kaggle_metadata, on='imdb_id', suffixes=['_wiki','_kaggle'])
+
+    ratings['timestamp'] = pd.to_datetime(ratings['timestamp'], unit='s') # remove outlier
+    movies_df['Language'].apply(lambda x: tuple(x) if type(x) == list else x).value_counts(dropna=False) # convert languages to tuple
+
+    movies_df.drop(columns=['title_wiki','release_date_wiki','Language','Production company(s)'], inplace=True)
+
+    ##### Create a function to fill in missing data:
+    def fill_missing_kaggle_data(df, kaggle_column, wiki_column):
+        df[kaggle_column] = df.apply(
+            lambda row: row[wiki_column] if row[kaggle_column] == 0 else row[kaggle_column]
+            , axis=1)
+        df.drop(columns=wiki_column, inplace=True)
+
+    ##### Run the function on runtime, budget, and revenue pairs:
+    fill_missing_kaggle_data(movies_df, 'runtime', 'running_time')
+    fill_missing_kaggle_data(movies_df, 'budget_kaggle', 'budget_wiki')
+    fill_missing_kaggle_data(movies_df, 'revenue', 'box_office')
+
+    ##### Reorder Columns:
+    movies_df = movies_df.loc[:, ['imdb_id','id','title_kaggle','original_title','tagline','belongs_to_collection','url','imdb_link',
+                       'runtime','budget_kaggle','revenue','release_date_kaggle','popularity','vote_average','vote_count',
+                       'genres','original_language','overview','spoken_languages','Country',
+                       'production_companies','production_countries','Distributor',
+                       'Producer(s)','Director','Starring','Cinematography','Editor(s)','Writer(s)','Composer(s)','Based on'
+                      ]]
+
+    ##### Rename Columns:
+    movies_df.rename({'id':'kaggle_id',
+                  'title_kaggle':'title',
+                  'url':'wikipedia_url',
+                  'budget_kaggle':'budget',
+                  'release_date_kaggle':'release_date',
+                  'Country':'country',
+                  'Distributor':'distributor',
+                  'Producer(s)':'producers',
+                  'Director':'director',
+                  'Starring':'starring',
+                  'Cinematography':'cinematography',
+                  'Editor(s)':'editors',
+                  'Writer(s)':'writers',
+                  'Composer(s)':'composers',
+                  'Based on':'based_on'
+                 }, axis='columns', inplace=True)
+
+    #### Merge movies_df and ratings data:
+
+    rating_counts = ratings.groupby(['movieId','rating'], as_index=False).count() \
+                .rename({'userId':'count'}, axis=1) \
+                .pivot(index='movieId',columns='rating', values='count')
+
+    rating_counts.columns = ['rating_' + str(col) for col in rating_counts.columns]
+
+    ##### Left Merge:
+    movies_with_ratings_df = pd.merge(movies_df, rating_counts, left_on='kaggle_id', right_index=True, how='left')
+
+    ##### Fill NA with 0s:
+    movies_with_ratings_df[rating_counts.columns] = movies_with_ratings_df[rating_counts.columns].fillna(0)
+
+    ## This ends the TRANSFORM section!
 
 
     ## STEP 3: LOAD
@@ -254,6 +337,8 @@ def extract_transform_load(wiki_file, kaggle_file, ratings_file):
 
     print(f'Done. {time.time() - start_time} total seconds elapsed')
 
+    ## This ends the LOAD section!
+    
 # -------------------------------------
 
 # Define File Paths
