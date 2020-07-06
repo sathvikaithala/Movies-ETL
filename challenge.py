@@ -330,7 +330,7 @@ def extract_transform_load(wiki_file, kaggle_file, ratings_file):
     engine = create_engine(db_string)
 
     ### Import movie data:
-    movies_with_ratings_df.to_sql(name='Challenge8_Movies', con=engine) ###CHECK IF THIS IS MWR_DF or just movies_Df
+    movies_with_ratings_df.to_sql(name='Challenge8_Movies', con=engine) 
 
     ### Import ratings data:
     rows_imported = 0
