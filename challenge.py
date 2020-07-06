@@ -10,14 +10,14 @@
 
 # -------------------------------------
 
-# Import Dependencies:
-import json
-import pandas as pd
-import numpy as np
 
 # Function:
 
 def extract_transform_load(wiki_file, kaggle_file, ratings_file):
+    # Import Dependencies:
+    import json
+    import pandas as pd
+    import numpy as np
 
     
     ## STEP 1: EXTRACT
@@ -26,8 +26,6 @@ def extract_transform_load(wiki_file, kaggle_file, ratings_file):
     with open(f'{wiki_file}', mode='r') as file:
         wiki_movies_raw = json.load(file)
     
-    ######## COME BACK TO THIS: wiki_movies_df = pd.DataFrame(wiki_movies_raw)
-
     kaggle_metadata = pd.read_csv(f'{kaggle_file}',low_memory=False)
     
     ratings = pd.read_csv(f'{ratings_file}')
@@ -47,10 +45,6 @@ def extract_transform_load(wiki_file, kaggle_file, ratings_file):
                    and 'imdb_link' in movie
                    and 'No. of episodes' not in movie]
     
-    ##*******##
-    ##### Put this shortened list into a dataframe (now has only 75 columns and 7076 rows)
-    #wiki_movies_df = pd.DataFrame(wiki_movies)
-    ##*******##
 
     #### Assumption 3: Alternate titles can be combined into one list to reduce the number of columns without losing data
 
@@ -247,6 +241,19 @@ def extract_transform_load(wiki_file, kaggle_file, ratings_file):
 
     ### Merge Wikipedia and Kaggle Metadata into movies_df:
 
+    #### Assumption 7: There is some redundant data between our different datasets. We will decide to keep some while dropping others, as follows:
+        # Competing data:
+        # Wiki                     Movielens                Resolution
+        #--------------------------------------------------------------------------
+        # title_wiki               title_kaggle             Drop Wikipedia -- kaggle is better, and no missing values
+        # running_time             runtime                  Keep Kaggle; fill in zeros with Wikipedia data.
+        # budget_wiki              budget_kaggle            Keep Kaggle; fill in zeros with Wikipedia data.
+        # box_office               revenue                  Keep Kaggle; fill in zeros with Wikipedia data.
+        # release_date_wiki        release_date_kaggle      Drop Wikipedia -- kaggle is better, and no missing values
+        # Language                 original_language        Drop Wikipedia to avoid hassle
+        # Production company(s)    production_companies     Drop Wikipedia, kaggle is more consistent
+
+
     #### Inner join metadata and wikipedia after cleaning:
     movies_df = pd.merge(wiki_movies_df, kaggle_metadata, on='imdb_id', suffixes=['_wiki','_kaggle'])
 
@@ -338,8 +345,10 @@ def extract_transform_load(wiki_file, kaggle_file, ratings_file):
     print(f'Done. {time.time() - start_time} total seconds elapsed')
 
     ## This ends the LOAD section!
-    
+
 # -------------------------------------
+
+# This section is not part of the function
 
 # Define File Paths
 wiki_file = '/Users/sathvik/Desktop/Data Analytics Boot Camp/Analytics Projects/Movies Analysis/Resources/wikipedia.movies.json'
