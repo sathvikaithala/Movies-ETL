@@ -33,13 +33,18 @@ We were then tasked with creating a Python function that takes in three input fi
 
 6) <b>Some columns may have data represented in different formats</b> We used REGEX functions to clean up these inconsistencies. Some examples are listed below:
 
-  6a) <b>There are two main forms of numeric formats for box office and budget values.</b> Ex: $123.4 Million vs. $123,400,000. However, within these two formats, there are many potential variations. 
+      6a) <b>There are two main forms of numeric formats for box office and budget values.</b> Ex: $123.4 Million vs. $123,400,000. However, within these two                 formats, there are many potential variations. 
   
-  6b) <b>There are 4 main forms of dates.</b> They are as follows:
-        - Full month name, one- to two-digit day, four-digit year (i.e., January 1, 2000)
-        - Four-digit year, two-digit month, two-digit day, with any separator (i.e., 2000-01-01)
-        - Full month name, four-digit year (i.e., January 2000)
-        - Four-digit year
+      6b) <b>There are 4 main forms of dates.</b> They are as follows:
+      
+          - Full month name, one- to two-digit day, four-digit year (i.e., January 1, 2000)
+          
+          - Four-digit year, two-digit month, two-digit day, with any separator (i.e., 2000-01-01)
+          
+          - Full month name, four-digit year (i.e., January 2000)
+          
+          - Four-digit year
+          
   
 7) <b>There is some redundant data between our different datasets.</b> We will decide to keep some while dropping others, as follows:
         
